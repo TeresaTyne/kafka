@@ -17,6 +17,7 @@
 package org.apache.kafka.streams.processor.internals;
 
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
@@ -34,8 +35,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 class AssignedStreamsTasks extends AssignedTasks<StreamTask> implements RestoringTasks {
-    private final Map<TaskId, StreamTask> suspended = new HashMap<>();
-    private final Map<TaskId, StreamTask> restoring = new HashMap<>();
+    private final Map<TaskId, StreamTask> suspended = new ConcurrentHashMap<>();
+    private final Map<TaskId, StreamTask> restoring = new ConcurrentHashMap<>();
     private final Set<TopicPartition> restoredPartitions = new HashSet<>();
     private final Map<TopicPartition, StreamTask> restoringByPartition = new HashMap<>();
     private final Set<TaskId> prevActiveTasks = new HashSet<>();
@@ -148,7 +149,7 @@ class AssignedStreamsTasks extends AssignedTasks<StreamTask> implements Restorin
                 // swallow and move on since we are rebalancing
                 log.info("Failed to suspend stream task {} since it got migrated to another thread already. " +
                     "Closing it as zombie and moving on.", id);
-                firstException.compareAndSet(null, closeZombieTask(task));
+                tryCloseZombieTask(task);
                 prevActiveTasks.remove(id);
             } catch (final RuntimeException e) {
                 log.error("Suspending stream task {} failed due to the following error:", id, e);
